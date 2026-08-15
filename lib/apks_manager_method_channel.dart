@@ -10,8 +10,10 @@ class MethodChannelApksManager extends ApksManagerPlatform {
   final methodChannel = const MethodChannel('apks_manager');
 
   @override
-  Future<String?> getPlatformVersion() async {
-    final version = await methodChannel.invokeMethod<String>('getPlatformVersion');
-    return version;
+  Future<bool> installSplitApks(List<String> filePaths) async {
+    final result = await methodChannel.invokeMethod<bool>('installSplitApks', {
+      'filePaths': filePaths,
+    });
+    return result ?? false;
   }
 }

@@ -23,7 +23,7 @@ abstract class ApksManagerPlatform extends PlatformInterface {
     _instance = instance;
   }
 
-  Future<String?> getPlatformVersion() {
-    throw UnimplementedError('platformVersion() has not been implemented.');
+  Future<bool> installSplitApks(List<String> filePaths) {
+    throw UnimplementedError('installSplitApks() has not been implemented.');
   }
 }
