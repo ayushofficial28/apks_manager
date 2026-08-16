@@ -38,8 +38,8 @@ android {
     dependencies {
         testImplementation("junit:junit:4.13.2")
         testImplementation("org.mockito:mockito-core:5.0.0")
-        implementation("ru.solrudev.ackpine:ackpine-core:0.22.8")
-        implementation("ru.solrudev.ackpine:ackpine-splits:0.22.8")
+        implementation("ru.solrudev.ackpine:ackpine-core:0.24.0")
+        implementation("ru.solrudev.ackpine:ackpine-splits:0.24.0")
     }
 
     testOptions {

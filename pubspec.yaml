@@ -1,7 +1,9 @@
 name: apks_manager
-description: "A new Flutter plugin project."
+description: A Flutter plugin for bundling and installing split APKs (.apks) seamlessly. Features configurable compression and native Ackpine integration for fast Android installations.
 version: 0.0.1
-homepage:
+homepage: https://github.com/ayushofficial28/apks_manager
+repository: https://github.com/ayushofficial28/apks_manager
+issue_tracker: https://github.com/ayushofficial28/apks_manager/issues
 
 environment:
   sdk: ^3.10.7

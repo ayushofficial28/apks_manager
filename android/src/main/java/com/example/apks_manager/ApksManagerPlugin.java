@@ -2,6 +2,8 @@ package com.example.apks_manager;
 
 import android.content.Context;
 import android.net.Uri;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.annotation.NonNull;
 
@@ -19,11 +21,19 @@ import io.flutter.plugin.common.MethodChannel.Result;
 
 import ru.solrudev.ackpine.installer.PackageInstaller;
 import ru.solrudev.ackpine.installer.parameters.InstallParameters;
-import ru.solrudev.ackpine.installer.parameters.Confirmation;
+import ru.solrudev.ackpine.session.parameters.Confirmation;
+import ru.solrudev.ackpine.DisposableSubscriptionContainer;
+import ru.solrudev.ackpine.session.Session;
 
 public class ApksManagerPlugin implements FlutterPlugin, MethodCallHandler, ActivityAware {
     private MethodChannel channel;
     private Context context;
+    
+    // Class-level container for memory management
+    private final DisposableSubscriptionContainer subscriptions = new DisposableSubscriptionContainer();
+    
+    // Handler to safely pass data back to Flutter's Main UI Thread
+    private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @Override
     public void onAttachedToEngine(@NonNull FlutterPluginBinding flutterPluginBinding) {
@@ -42,21 +52,39 @@ public class ApksManagerPlugin implements FlutterPlugin, MethodCallHandler, Acti
                 return;
             }
 
+            if (context == null) {
+                result.error("NO_CONTEXT", "Android context is null", null);
+                return;
+            }
+
             try {
-                PackageInstaller packageInstaller = PackageInstaller.Companion.getInstance(context);
+                PackageInstaller packageInstaller = PackageInstaller.getInstance(context);
 
                 List<Uri> uris = new ArrayList<>();
                 for (String path : filePaths) {
                     uris.add(Uri.fromFile(new File(path)));
                 }
 
-                InstallParameters parameters = new InstallParameters.Builder()
-                        .addApks(uris)
+                InstallParameters parameters = new InstallParameters.Builder(uris.get(0))
+                        .addApks(uris.subList(1, uris.size()))
                         .setConfirmation(Confirmation.IMMEDIATE)
                         .build();
 
-                packageInstaller.createSession(parameters).commit();
-                result.success(true);
+                // 1. Create the session
+                var session = packageInstaller.createSession(parameters);
+
+                // 2. Bind the listener using the class-level container
+                // 3. Use mainHandler to safely send the result back to Flutter
+                Session.TerminalStateListener.bind(session, subscriptions)
+                        .addOnSuccessListener(sessionId -> {
+                            mainHandler.post(() -> result.success(true));
+                        })
+                        .addOnCancelListener(sessionId -> {
+                            mainHandler.post(() -> result.error("CANCELLED", "Installation was cancelled", null));
+                        })
+                        .addOnFailureListener((sessionId, failure) -> {
+                            mainHandler.post(() -> result.error("INSTALL_ERROR", failure.getMessage(), null));
+                        });
 
             } catch (Exception e) {
                 result.error("INSTALL_ERROR", e.getMessage(), null);
@@ -68,7 +96,9 @@ public class ApksManagerPlugin implements FlutterPlugin, MethodCallHandler, Acti
 
     @Override
     public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
-        channel.setMethodCallHandler(null);
+        if (channel != null) {
+            channel.setMethodCallHandler(null);
+        }
     }
 
     @Override
@@ -77,7 +107,10 @@ public class ApksManagerPlugin implements FlutterPlugin, MethodCallHandler, Acti
     }
 
     @Override
-    public void onDetachedFromActivityForConfigChanges() {}
+    public void onDetachedFromActivityForConfigChanges() {
+        context = null;
+        subscriptions.clear(); // Prevent memory leaks on config changes
+    }
 
     @Override
     public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
@@ -87,5 +120,6 @@ public class ApksManagerPlugin implements FlutterPlugin, MethodCallHandler, Acti
     @Override
     public void onDetachedFromActivity() {
         context = null;
+        subscriptions.clear(); // Prevent memory leaks when UI is destroyed
     }
 }

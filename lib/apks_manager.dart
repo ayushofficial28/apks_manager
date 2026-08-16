@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:isolate';
 import 'package:archive/archive_io.dart';
+import 'package:flutter/foundation.dart';
 import 'apks_manager_platform_interface.dart';
 
 class ApksManager {
@@ -10,18 +11,20 @@ class ApksManager {
   /// - [appName]: The name of the app (used for filename)
   /// - [outputDirPath]: (Optional) Where to save the file. Defaults to system temp directory.
   /// - [extension]: (Optional) Custom file extension (e.g., 'xapk'). Defaults to 'apks'.
+  /// - [compressionLevel]: (Optional) Compression level for the zip file (0-9). Defaults to 0 (no compression).
   static Future<String?> createBundle({
     required String baseApkPath,
     required String appName,
     String? outputDirPath,
     String extension = 'apks',
+    int compressionLevel = 0
   }) async {
     try {
       // Setup the destination path before jumping into the background thread
       final saveDir = outputDirPath ?? Directory.systemTemp.path;
       final cleanExt = extension.startsWith('.') ? extension.substring(1) : extension;
-      final bundleFilePath = '$saveDir/$appName.$cleanExt';
-
+      String bundleFilePath = '$saveDir/$appName.$cleanExt';
+      int counter=1;
       // Offload the heavy directory scanning and zipping to a background Isolate
       return await Isolate.run(() {
         final Directory appDir = File(baseApkPath).parent;
@@ -39,7 +42,28 @@ class ApksManager {
         }
 
         final encoder = ZipFileEncoder();
-        encoder.create(bundleFilePath);
+        while (true) {
+          // Check 1: Files your app created (Visible to your app)
+          // If your app made it, existsSync() returns true. 
+          if (File(bundleFilePath).existsSync()) {
+            bundleFilePath = '$saveDir/$appName($counter).$cleanExt';
+            counter++;
+            continue; // Skip the try-catch and test the new name
+          }
+
+          // Check 2: Files other apps created (Hidden by Scoped Storage)
+          try {
+            // If we reach here, existsSync() was false. 
+            // If another app owns it, this line throws errno 17.
+            // If no one owns it, it successfully creates the file.
+            encoder.create(bundleFilePath, level: compressionLevel);
+            break; 
+          } catch (e) {
+            // The OS rejected the write request. Update the path and loop again.
+            bundleFilePath = '$saveDir/$appName($counter).$cleanExt';
+            counter++;
+          }
+        }
 
         for (final apk in apkFiles) {
           encoder.addFile(apk);
@@ -50,7 +74,7 @@ class ApksManager {
       });
       
     } catch (e) {
-      print("Error creating bundle: $e");
+      debugPrint("Error creating bundle: $e");
       return null;
     }
   }
@@ -60,7 +84,7 @@ class ApksManager {
     try {
       final file = File(bundleFilePath);
       if (!file.existsSync()) {
-        print("Error: Bundle file does not exist at $bundleFilePath");
+        debugPrint("Error: Bundle file does not exist at $bundleFilePath");
         return false;
       }
 
@@ -97,7 +121,7 @@ class ApksManager {
       
       return false;
     } catch (e) {
-      print("Error installing bundle: $e");
+      debugPrint("Error installing bundle: $e");
       return false;
     }
   }
@@ -120,9 +144,9 @@ class ApksManager {
           }
         }
       });
-      print("BhejDe cache cleaned successfully.");
+      debugPrint("Bundle cache cleaned successfully.");
     } catch (e) {
-      print("Error cleaning temp directory: $e");
+      debugPrint("Error cleaning temp directory: $e");
     }
   }
 }
