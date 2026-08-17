@@ -80,12 +80,17 @@ class ApksManager {
   }
 
   /// Installs a bundle file (e.g., .apks, .xapk) by extracting the APKs and passing them to the native installer.
+  /// Can also install .apk files directly
   static Future<bool> installBundle(String bundleFilePath) async {
     try {
       final file = File(bundleFilePath);
       if (!file.existsSync()) {
         debugPrint("Error: Bundle file does not exist at $bundleFilePath");
         return false;
+      }
+      if (bundleFilePath.endsWith('.apk')) {
+      return await ApksManagerPlatform.instance
+          .installSplitApks([bundleFilePath]);
       }
 
       // Offload the heavy file reading and unzipping to a background Isolate

@@ -1,3 +1,9 @@
+## 1.1.0
+
+* **Added**:
+  * Support for installing standalone `.apk` files through `installBundle()`.
+  * `installBundle()` now supports both `.apk` files and APK bundles such as `.apks`.
+
 ## 1.0.0
 
 * **Initial Release**:
