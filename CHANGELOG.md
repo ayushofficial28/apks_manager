@@ -1,3 +1,8 @@
+## 1.1.1
+
+* **Fixed**:
+  * Resolved issue of `createBundle()` returning an empty zip file due to unawaited calls to addFile.
+
 ## 1.1.0
 
 * **Added**:
