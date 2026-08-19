@@ -66,9 +66,9 @@ class ApksManager {
         }
 
         for (final apk in apkFiles) {
-          encoder.addFile(apk);
+          encoder.addFileSync(apk);
         }
-        encoder.close();
+        encoder.closeSync();
 
         return bundleFilePath; 
       });
